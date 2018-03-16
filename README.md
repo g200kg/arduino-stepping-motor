@@ -18,8 +18,8 @@ e.g.  [sparkfun : EasyDriver](https://www.sparkfun.com/products/12779)
 ## I2C commands
 all i2c write commands have 2 bytes parameter (little endian)  
 ### Write:
-|   commands         || param1   | param2   |  description                                            |
-|--------------------|----------|----------|---------------------------------------------------------|
+|      |commands     | param1   | param2   |  description                                            |
+|------|-------------|----------|----------|---------------------------------------------------------|
 | 0x00 | ParamInit   | dummy    | dummy    | Set motor profile to default value                      |
 | 0x01 | Forward     | steps(L) | steps(H) | Move forward a specified number of steps                |
 |      |             |          |          |  if number is 0xffff move forward infinity steps        |
