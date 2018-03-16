@@ -24,8 +24,9 @@
 //   | 0x03 | Abort       | dummy    | dummy    | Cancel the currently running move                       |
 //   | 0x04 | SetSpeed    | speed(L) | speed(H) | Set motor speed (micro steps per sec) default is 3200   |
 //   | 0x05 | SetMinSpeed | speed(L) | speed(H) | Set min speed (micro steps per sec) default is 800      |
-//   | 0x06 | SetAccelRate| rate(L)  | rate(H)  | Accel/DeAccel rate. Hz / msec. default is 20            |
-//   | 0x07 | Enable      | 0/1      | dummy    | enable / disable stepper                                |
+//   | 0x06 | SetAccelRate| rate(L)  | rate(H)  | Accel/DeAccel rate. msec / kHz.                         |
+//   |      |             |          |          |  if 0, accel/deaccel is disabled. default is 20.        |
+//   | 0x07 | Enable      | 0/1      | dummy    | enable / disable stepper.                               |
 //
 //   Read:
 //     Any read access return 1 byte motor status 0x00:stopped 0x01:moving
@@ -55,11 +56,11 @@
 // stepping motor profiles (8 micro step)
 #define MAX_SPEED  (3200)           // default motor speed. microsteps per sec
 #define MIN_SPEED  (800)            // default min speed. microsteps per sec
-#define ACCEL_RATE (50)             // default accel rate. inc/dec ratio of Hz/msec
+#define ACCEL_RATE (20)             // default accel rate. inc/dec ratio of msec/kHz
 
 long max_speed;
 long min_speed;
-long accel_rate;
+long accel_rate_r;
 long target_speed = 0;
 long current_speed = 0;
 long cycle_wait;
@@ -83,7 +84,7 @@ unsigned long target_step = 0;
 void paramInit(){
   max_speed = MAX_SPEED;
   min_speed = MIN_SPEED;
-  accel_rate = ACCEL_RATE;
+  accel_rate_r = 2000 / ACCEL_RATE;
 }
 
 void setup() {
@@ -140,11 +141,11 @@ void loop() {
       cycle_wait = 1000000 / current_speed;
     else
       cycle_wait = 1000000 / min_speed;
-    int w = accel_rate * cycle_wait / 1000;
+    int w = accel_rate_r * cycle_wait / 2000;
     if(w < 1)
       w = 1;
     int remain = target_step - run_step;
-    int rlimit = (long)current_speed*current_speed/(accel_rate*2000);
+    int rlimit = (long)current_speed * current_speed / (accel_rate_r * 1000);
     if(deaccel_phase || (target_step != 0xffff && remain <= rlimit)){
       deaccel_phase = 1;
       if(remain <= rlimit)
@@ -242,7 +243,10 @@ void loop() {
 
     case 6: // setAccelRate rate(2bytes Hz / msec)
       DebugPrintln("cmd3: setAccelRate");
-      accel_rate = param;
+      if(param==0)
+        accel_rate_r;
+      else
+        accel_rate_r = 2000 / param;
       break;
 
     case 7: // enable

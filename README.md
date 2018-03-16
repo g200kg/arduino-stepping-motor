@@ -26,7 +26,7 @@ all i2c write commands have 2 bytes parameter (little endian)
 | 0x03 | Abort       | dummy    | dummy    | Cancel the currently running move                       |
 | 0x04 | SetSpeed    | speed(L) | speed(H) | Set motor speed (micro steps per sec) default is 3200   |
 | 0x05 | SetMinSpeed | speed(L) | speed(H) | Set min speed (micro steps per sec) default is 800      |
-| 0x06 | SetAccelRate| rate(L)  | rate(H)  | Accel/DeAccel rate. Hz / msec. default is 20            |
+| 0x06 | SetAccelRate| rate(L)  | rate(H)  | Accel/DeAccel rate. msec / kHz. if 0, accel/deaccel is disabled. default is 20            |
 | 0x07 | Enable      | 0/1      | dummy    | enable / disable stepper                                |
 
 
