@@ -44,10 +44,10 @@ all i2c write commands have 2 bytes parameter (little endian)
 ```
 
 ## Demo Movie
-[Demo Movie](./steppertest.mp4)
+[![Demo Movie](https://img.youtube.com/vi/KaYRTRlLtlk/0.jpg)](https://www.youtube.com/watch?v=KaYRTRlLtlk)
 
 ## License
 This software is based on
 a project of [Kazutaka Nakamura](http://makaizou.blogspot.jp/)'s stepping motor driver.
 
-Released under the [MIT](./LICENSE) license
+Released under the MIT license
