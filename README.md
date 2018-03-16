@@ -21,10 +21,8 @@ all i2c write commands have 2 bytes parameter (little endian)
 |      |commands     | param1   | param2   |  description                                            |
 |------|-------------|----------|----------|---------------------------------------------------------|
 | 0x00 | ParamInit   | dummy    | dummy    | Set motor profile to default value                      |
-| 0x01 | Forward     | steps(L) | steps(H) | Move forward a specified number of steps<br/>
-                                              if number is 0xffff move forward infinity steps        |
-| 0x02 | Reverse     | steps(L) | steps(H) | Move backward a specified number of steps<br/>
-                                              if number is 0xffff move backward infinity steps       |
+| 0x01 | Forward     | steps(L) | steps(H) | Move forward a specified number of steps<br/>if number is 0xffff move forward infinity steps        |
+| 0x02 | Reverse     | steps(L) | steps(H) | Move backward a specified number of steps<br/>if number is 0xffff move backward infinity steps       |
 | 0x03 | Abort       | dummy    | dummy    | Cancel the currently running move                       |
 | 0x04 | SetSpeed    | speed(L) | speed(H) | Set motor speed (micro steps per sec) default is 3200   |
 | 0x05 | SetMinSpeed | speed(L) | speed(H) | Set min speed (micro steps per sec) default is 800      |
