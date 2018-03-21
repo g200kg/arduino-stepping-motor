@@ -58,12 +58,12 @@
 #define MIN_SPEED  (800)            // default min speed. microsteps per sec
 #define ACCEL_RATE (20)             // default accel rate. inc/dec ratio of msec/kHz
 
-long max_speed;
-long min_speed;
-long accel_rate_r;
-long target_speed = 0;
-long current_speed = 0;
-long cycle_wait;
+int32_t max_speed;
+int32_t min_speed;
+int32_t accel_rate_r;
+int32_t target_speed = 0;
+int32_t current_speed = 0;
+int32_t cycle_wait;
 int deaccel_phase = 0;
 
 char rcv_buf[256];
@@ -81,9 +81,11 @@ unsigned long target_step = 0;
 #define DebugPrintln(...)
 #endif
 
+#define SHIFT 8
+
 void paramInit(){
-  max_speed = MAX_SPEED;
-  min_speed = MIN_SPEED;
+  max_speed = (MAX_SPEED<<SHIFT);
+  min_speed = (MIN_SPEED<<SHIFT);
   accel_rate_r = 2000 / ACCEL_RATE;
 }
 
@@ -138,20 +140,18 @@ void receiveEvent(int howMany) {
 void loop() {
   if(motor_run == 1){
     if(current_speed)
-      cycle_wait = 1000000 / current_speed;
+      cycle_wait = 1000000 / (current_speed>>SHIFT);
     else
-      cycle_wait = 1000000 / min_speed;
-    int w = accel_rate_r * cycle_wait / 2000;
+      cycle_wait = 1000000 / (min_speed>>SHIFT);
+    long w = (((int64_t)accel_rate_r * cycle_wait)<<SHIFT) / 2000;
     if(w < 1)
       w = 1;
     int remain = target_step - run_step;
-    int rlimit = (long)current_speed * current_speed / (accel_rate_r * 1000);
+    int rlimit = (current_speed>>SHIFT) * (current_speed>>SHIFT) / (accel_rate_r * 1000);
     if(deaccel_phase || (target_step != 0xffff && remain <= rlimit)){
       deaccel_phase = 1;
       if(remain <= rlimit)
         current_speed-=w;
-      if(current_speed<min_speed)
-        current_speed = min_speed;
     }
     else {
       if(target_speed > current_speed){
@@ -163,6 +163,8 @@ void loop() {
           current_speed = target_speed;
       }
     }
+    if(current_speed < min_speed)
+      current_speed = min_speed;
     digitalWrite(CLK, HIGH); 
     delayMicroseconds(cycle_wait>>1); 
     digitalWrite(CLK, LOW); 
@@ -230,21 +232,21 @@ void loop() {
       
     case 4: // setSpeed, speed(2bytes pulse per sec)
       DebugPrintln("cmd4: setSpeed");
-      max_speed = param;
+      max_speed = ((long)param<<SHIFT);
       target_speed = max_speed;
       break;
 
     case 5: // setMinSpeed speed(2bytes pulse per sec)
       DebugPrintln("cmd3: setMinSpeed");
-      min_speed = param;
-      if(min_speed < 10)
-        min_speed = 10;
+      min_speed = ((long)param<<SHIFT);
+      if(min_speed < (10<<SHIFT))
+        min_speed = (10<<SHIFT);
       break;
 
     case 6: // setAccelRate rate(2bytes Hz / msec)
       DebugPrintln("cmd3: setAccelRate");
       if(param==0)
-        accel_rate_r;
+        accel_rate_r = 2000;
       else
         accel_rate_r = 2000 / param;
       break;
