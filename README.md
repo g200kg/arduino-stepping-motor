@@ -35,6 +35,11 @@ all i2c write commands have 2 bytes parameter (little endian)
   Any read access return 1 byte motor status 0x00:stopped 0x01:moving
 
 ----
+## Motor Speed Graph
+
+![](./steppingmotor.png)
+
+----
 ## Test with I2CTools
 
 ```

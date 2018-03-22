@@ -230,9 +230,12 @@ void loop() {
   
   if(motor_run){
     long spd = current_speed>>SHIFT;
+    long spd2 = (current_speed - min_speed)>>SHIFT;
     cycle_wait = 1000000 / spd;
+    int rlimit = 0;
     int remain = target_step - run_step;
-    int rlimit = spd * spd / accel_rate_r;
+    if(spd2 > 0)
+      rlimit = spd2 * spd2 / accel_rate_r;
     long w = ((int64_t)accel_rate_r * cycle_wait * 2148) >> 24;       // long w = (int64_t)accel_rate_r * cycle_wait / (2000000/(1<<SHIFT));
     if(target_step != 0xffff && remain <= rlimit){
       current_speed -= w;
