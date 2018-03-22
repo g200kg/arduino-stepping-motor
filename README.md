@@ -10,6 +10,7 @@ e.g.  [sparkfun : EasyDriver](https://www.sparkfun.com/products/12779)
 * Single axis stepping motor driver.
 * Trapezoidal acceleration / deceleration are available.
 * Default I2C address is 0x12.
+* Pulse speed up to about 7000 pulses / sec.
 * Arduino to DriverChip connection :
   * D 8  => CLK (microstep clock)
   * D 9  => DIR (motor direction)
@@ -34,13 +35,10 @@ all i2c write commands have 2 bytes parameter (little endian)
   Any read access return 1 byte motor status 0x00:stopped 0x01:moving
 
 ----
-## Test code for Raspberry Pi Python
+## Test with I2CTools
 
-```python
- import smbus
- i2c = smbus.SMBus(1)
- # move forward 3200 (=0xc80) steps
- i2c.write_i2c_block_data(0x12, 1, [0x80, 0x0c])
+```
+i2cset -y 1 0x12 0x01 1600 w
 ```
 
 ## Demo Movie

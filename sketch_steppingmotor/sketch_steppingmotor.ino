@@ -52,6 +52,8 @@
 #define CLK 8
 #define DIR 9
 #define ENA 10
+//
+#define LED 13
 
 // stepping motor profiles (8 micro step)
 #define MAX_SPEED  (3200)           // default motor speed. microsteps per sec
@@ -64,7 +66,7 @@ int32_t accel_rate_r;
 int32_t target_speed = 0;
 int32_t current_speed = 0;
 int32_t cycle_wait;
-int deaccel_phase = 0;
+long t1,t2;
 
 char rcv_buf[256];
 int rcv_len;
@@ -86,7 +88,7 @@ unsigned long target_step = 0;
 void paramInit(){
   max_speed = (MAX_SPEED<<SHIFT);
   min_speed = (MIN_SPEED<<SHIFT);
-  accel_rate_r = 2000 / ACCEL_RATE;
+  accel_rate_r = 2000000 / ACCEL_RATE;
 }
 
 void setup() {
@@ -94,9 +96,11 @@ void setup() {
   pinMode(CLK, OUTPUT); 
   pinMode(DIR, OUTPUT); 
   pinMode(ENA, OUTPUT);
+  pinMode(LED, OUTPUT);
   digitalWrite(CLK, LOW); 
   digitalWrite(DIR, LOW); 
   digitalWrite(ENA, HIGH);
+  digitalWrite(LED, LOW);
   Wire.begin(I2CADDR);            // join i2c bus
   Wire.onReceive(receiveEvent);   // I2C write
   Wire.onRequest(requestEvent);   // I2C read
@@ -138,44 +142,9 @@ void receiveEvent(int howMany) {
 
 }
 void loop() {
-  if(motor_run == 1){
-    if(current_speed)
-      cycle_wait = 1000000 / (current_speed>>SHIFT);
-    else
-      cycle_wait = 1000000 / (min_speed>>SHIFT);
-    long w = (((int64_t)accel_rate_r * cycle_wait)<<SHIFT) / 2000;
-    if(w < 1)
-      w = 1;
-    int remain = target_step - run_step;
-    int rlimit = (current_speed>>SHIFT) * (current_speed>>SHIFT) / (accel_rate_r * 1000);
-    if(deaccel_phase || (target_step != 0xffff && remain <= rlimit)){
-      deaccel_phase = 1;
-      if(remain <= rlimit)
-        current_speed-=w;
-    }
-    else {
-      if(target_speed > current_speed){
-        if((current_speed += w) > target_speed)
-          current_speed = target_speed;
-      }
-      else if(target_speed < current_speed){
-        if((current_speed -= w) < target_speed)
-          current_speed = target_speed;
-      }
-    }
-    if(current_speed < min_speed)
-      current_speed = min_speed;
+  if(motor_run)
     digitalWrite(CLK, HIGH); 
-    delayMicroseconds(cycle_wait>>1); 
-    digitalWrite(CLK, LOW); 
-    delayMicroseconds((cycle_wait+1)>>1); 
-    run_step += 1;
-    if (target_step != 0xffff && run_step >= target_step) {
-      motor_run = 0;
-      current_speed = 0;
-    }
-  }
-
+  t1 = micros();
   if( rcv_len > 0 ) {
     DebugPrint("data[");
     DebugPrint(rcv_buf[0] & 0xff,HEX);
@@ -202,7 +171,6 @@ void loop() {
         motor_run = 1;
         current_speed = min_speed;
         target_speed = max_speed;
-        deaccel_phase = 0;
       } else {
         DebugPrintln("busy");
       }
@@ -217,7 +185,6 @@ void loop() {
         motor_run = 1;
         current_speed = min_speed;
         target_speed = max_speed;
-        deaccel_phase = 0;
       } else {
         DebugPrintln("busy");
       }
@@ -245,10 +212,9 @@ void loop() {
 
     case 6: // setAccelRate rate(2bytes Hz / msec)
       DebugPrintln("cmd3: setAccelRate");
-      if(param==0)
-        accel_rate_r = 2000;
-      else
-        accel_rate_r = 2000 / param;
+      if(param == 0)
+        param = 1;
+      accel_rate_r = 2000000 / param;
       break;
 
     case 7: // enable
@@ -261,4 +227,44 @@ void loop() {
     }
     rcv_len = 0;
   }
+  
+  if(motor_run){
+    long spd = current_speed>>SHIFT;
+    cycle_wait = 1000000 / spd;
+    int remain = target_step - run_step;
+    int rlimit = spd * spd / accel_rate_r;
+    long w = ((int64_t)accel_rate_r * cycle_wait * 2148) >> 24;       // long w = (int64_t)accel_rate_r * cycle_wait / (2000000/(1<<SHIFT));
+    if(target_step != 0xffff && remain <= rlimit){
+      current_speed -= w;
+    }
+    else {
+      if(target_speed > current_speed){
+        if((current_speed += w) > target_speed)
+          current_speed = target_speed;
+      }
+      else if(target_speed < current_speed){
+        if((current_speed -= w) < target_speed)
+          current_speed = target_speed;
+      }
+    }
+
+    if(current_speed < min_speed)
+      current_speed = min_speed;
+    digitalWrite(CLK, LOW); 
+    t2 = micros();
+    int d=cycle_wait - (t2-t1);
+    if(d>0){
+      delayMicroseconds(d);
+      digitalWrite(LED, LOW);
+    }
+    else{
+      digitalWrite(LED,HIGH);
+    }
+    run_step += 1;
+    if (target_step != 0xffff && run_step >= target_step) {
+      motor_run = 0;
+      current_speed = 0;
+    }
+  }
+
 }
