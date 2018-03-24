@@ -60,20 +60,26 @@
 #define MIN_SPEED  (800)            // default min speed. microsteps per sec
 #define ACCEL_RATE (20)             // default accel rate. inc/dec ratio of msec/kHz
 
-int32_t max_speed;
-int32_t min_speed;
-int32_t accel_rate_r;
-int32_t target_speed = 0;
-int32_t current_speed = 0;
-int32_t cycle_wait;
-long t1,t2;
+long max_speed;
+long min_speed;
+long min_spd;
+long min_spd2;
+long accel_rate;
+long accel_rate_r;
+long accel_rate_b;
+long target_speed = 0;
+long current_speed = 0;
+long cycle_wait;
+long rlimit;
+long delta_speed;
+unsigned long t1,t2;
 
 char rcv_buf[256];
 int rcv_len;
 int motor_run = 0;
 
-unsigned long run_step = 0;
-unsigned long target_step = 0;
+unsigned int run_step = 0;
+unsigned int target_step = 0;
 
 #if CMD_DEBUG==1
 #define DebugPrint(...) Serial.print(__VA_ARGS__)
@@ -83,12 +89,16 @@ unsigned long target_step = 0;
 #define DebugPrintln(...)
 #endif
 
-#define SHIFT 8
+#define SHIFT 7
 
 void paramInit(){
   max_speed = (MAX_SPEED<<SHIFT);
+  min_spd = MIN_SPEED;
+  min_spd2 = MIN_SPEED * MIN_SPEED;
   min_speed = (MIN_SPEED<<SHIFT);
-  accel_rate_r = 2000000 / ACCEL_RATE;
+  accel_rate = ACCEL_RATE;
+  accel_rate_r = 1000000 / ACCEL_RATE;
+  accel_rate_b = accel_rate * 16384 / 15625;
 }
 
 void setup() {
@@ -205,16 +215,20 @@ void loop() {
 
     case 5: // setMinSpeed speed(2bytes pulse per sec)
       DebugPrintln("cmd3: setMinSpeed");
-      min_speed = ((long)param<<SHIFT);
-      if(min_speed < (10<<SHIFT))
-        min_speed = (10<<SHIFT);
+      if(param < 10)
+        param = 10;
+      min_spd = (long)param;
+      min_spd2 = min_spd * min_spd;
+      min_speed = (min_spd<<SHIFT);
       break;
 
-    case 6: // setAccelRate rate(2bytes Hz / msec)
+    case 6: // setAccelRate rate(2bytes msec / kHz)
       DebugPrintln("cmd3: setAccelRate");
       if(param == 0)
         param = 1;
-      accel_rate_r = 2000000 / param;
+      accel_rate = param;
+      accel_rate_r = 1000000 / param;
+      accel_rate_b = accel_rate * 16384 / 15625;
       break;
 
     case 7: // enable
@@ -230,23 +244,29 @@ void loop() {
   
   if(motor_run){
     long spd = current_speed>>SHIFT;
-    long spd2 = (current_speed - min_speed)>>SHIFT;
-    cycle_wait = 1000000 / spd;
-    int rlimit = 0;
     int remain = target_step - run_step;
-    if(spd2 > 0)
-      rlimit = spd2 * spd2 / accel_rate_r;
-    long w = ((int64_t)accel_rate_r * cycle_wait * 2148) >> 24;       // long w = (int64_t)accel_rate_r * cycle_wait / (2000000/(1<<SHIFT));
-    if(target_step != 0xffff && remain <= rlimit){
-      current_speed -= w;
+    rlimit = (((spd * spd - min_spd2)>>7) * accel_rate_b) >> 14;
+//    if(run_step&1)
+      cycle_wait = 1000000 / spd;
+//    else
+      delta_speed = 128000000 / (spd * accel_rate);
+    
+    if(target_step == 0xffff)
+      remain = 0x7fff;
+    if(remain <= rlimit){
+      if(remain <= 0){
+        motor_run = 0;
+        current_speed = 0;
+      }
+      current_speed -= delta_speed;
     }
     else {
       if(target_speed > current_speed){
-        if((current_speed += w) > target_speed)
+        if((current_speed += delta_speed) > target_speed)
           current_speed = target_speed;
       }
       else if(target_speed < current_speed){
-        if((current_speed -= w) < target_speed)
+        if((current_speed -= delta_speed) < target_speed)
           current_speed = target_speed;
       }
     }
@@ -263,11 +283,6 @@ void loop() {
     else{
       digitalWrite(LED,HIGH);
     }
-    run_step += 1;
-    if (target_step != 0xffff && run_step >= target_step) {
-      motor_run = 0;
-      current_speed = 0;
-    }
+    ++run_step;
   }
-
 }
