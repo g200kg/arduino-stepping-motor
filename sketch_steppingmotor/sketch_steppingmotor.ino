@@ -92,12 +92,12 @@ unsigned int target_step = 0;
 #define SHIFT 7
 
 void paramInit(){
-  max_speed = (MAX_SPEED<<SHIFT);
+  max_speed = ((unsigned long)MAX_SPEED<<SHIFT);
   min_spd = MIN_SPEED;
-  min_spd2 = MIN_SPEED * MIN_SPEED;
-  min_speed = (MIN_SPEED<<SHIFT);
+  min_spd2 = (unsigned long)MIN_SPEED * MIN_SPEED;
+  min_speed = ((unsigned long)MIN_SPEED<<SHIFT);
   accel_rate = ACCEL_RATE;
-  accel_rate_r = 1000000 / ACCEL_RATE;
+  accel_rate_r = (unsigned long)1000000 / ACCEL_RATE;
   accel_rate_b = accel_rate * 16384 / 15625;
 }
 
@@ -246,11 +246,8 @@ void loop() {
     long spd = current_speed>>SHIFT;
     int remain = target_step - run_step;
     rlimit = (((spd * spd - min_spd2)>>7) * accel_rate_b) >> 14;
-//    if(run_step&1)
-      cycle_wait = 1000000 / spd;
-//    else
-      delta_speed = 128000000 / (spd * accel_rate);
-    
+    cycle_wait = (unsigned long)1000000 / spd;
+    delta_speed = (unsigned long)128000000 / (spd * accel_rate);
     if(target_step == 0xffff)
       remain = 0x7fff;
     if(remain <= rlimit){
@@ -258,7 +255,8 @@ void loop() {
         motor_run = 0;
         current_speed = 0;
       }
-      current_speed -= delta_speed;
+      else
+        current_speed -= delta_speed;
     }
     else {
       if(target_speed > current_speed){
@@ -275,7 +273,7 @@ void loop() {
       current_speed = min_speed;
     digitalWrite(CLK, LOW); 
     t2 = micros();
-    int d=cycle_wait - (t2-t1);
+    int d=(long)cycle_wait - (long)(t2-t1);
     if(d>0){
       delayMicroseconds(d);
       digitalWrite(LED, LOW);
